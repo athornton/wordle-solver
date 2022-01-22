@@ -251,10 +251,10 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--file', help='file of allowable words',
                         default='/usr/share/dict/words')
     parser.add_argument('-g', '--guesses', help='number of guesses',
-                        default=6)
+                        default=6, type=int)
     parser.add_argument('-i', '--initial-guess', help='initial guess',
                         default='')
-    parser.add_argument('-l', '--length', help='word length',
+    parser.add_argument('-l', '--length', help='word length', type=int,
                         default=5)
     args = parser.parse_args()
     w = Wordle(wordlist_file=args.file, debug=args.debug,
