@@ -91,7 +91,7 @@ class Wordle:
                 self.current_guess = best_guess
             else:
                 self.current_guess = ''
-                self.log.info("Current best guess is {best_guess}.")
+                self.log.info(f"Current best guess is {best_guess}.")
         raise ValueError("Maximum #guesses ({self.max_guesses}) exceeded!")
 
     def load_wordlist(self, filename):
