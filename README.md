@@ -1,6 +1,6 @@
 # Wordle Solver
 
-It does what it says on the tin.
+It does what it says on the tin.  It also plays on hard mode.
 
 If you're using it interactively--that is, without specifying the
 `--answer` option, input the results you get as a five-character string,
