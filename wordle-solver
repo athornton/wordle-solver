@@ -4,12 +4,13 @@ import argparse
 import logging
 import re
 import sys
-    
-from typing import Dict, List, Union
+
+from typing import Dict, List, Set, Union
+
 
 class Wordle:
     # From https://en.wikipedia.org/wiki/Letter_frequency
-    letterfrequency: Dict[str, Union[int,float]] = {
+    letterfrequency: Dict[str, Union[int, float]] = {
         "a": 8.2,
         "b": 1.5,
         "c": 2.8,
@@ -38,9 +39,16 @@ class Wordle:
         "z": 0.074,
     }
 
-    def __init__(self, wordlist_file: str = '/usr/share/dict/words',
-                 word_length:int=5, answer: str='', guesses: int=6,
-                 initial_guess: str='', debug:bool=False):
+    def __init__(
+        self,
+        wordlist_file: str = "/usr/share/dict/words",
+        word_length: int = 5,
+        answer: str = "",
+        guesses: int = 6,
+        initial_guess: str = "",
+        top: int = 1,
+        debug: bool = False,
+    ):
         self.log = logging.getLogger(__name__)
         level = logging.INFO
         if debug:
@@ -48,25 +56,25 @@ class Wordle:
         logging.basicConfig(level=level)
         self.answer = answer
         self.max_guesses = guesses
-        self.exclude_letters = set()
-        self.include_letters = set()
+        self.top = top
+        self.exclude_letters: Set[str] = set()
+        self.include_letters: Set[str] = set()
         self.word_length: int = word_length
-        self.current_guess=initial_guess
-        self.re_list: List[str] = ['^']
+        self.current_guess = initial_guess
+        self.re_list: List[str] = ["^"]
         for i in range(word_length):
-            self.re_list.append('.')
-        self.re_list.append('$')
+            self.re_list.append(".")
+        self.re_list.append("$")
         self.load_wordlist(wordlist_file)
         if not self.current_guess:
             # Pick the most-common-letters-word from the wordlist
-            self.current_guess = self.get_best_guess()
+            self.current_guess = self.get_best_guesses()[0]
             self.log.info(f"Best initial guess: {self.current_guess}")
         self.log.debug(
-            f"Initialized: wordlist {wordlist_file}, " +
-            f"word count {len(self.wordlist)}, " +
-            f"word length {word_length}.")
-                          
-        
+            f"Initialized: wordlist {wordlist_file}, "
+            + f"word count {len(self.wordlist)}, "
+            + f"word length {word_length}."
+        )
 
     def main_loop(self) -> None:
         for i in range(self.max_guesses):
@@ -77,33 +85,40 @@ class Wordle:
                 response = self.enter_response()
             else:
                 response = self.calculate_response()
-            if response == '!' * self.word_length:
+            if response == "!" * self.word_length:
                 # That's it
-                self.log.info(f"Answer found: '{self.current_guess}' on try " +
-                              f"{i + 1}.")
+                self.log.info(
+                    f"Answer found: '{self.current_guess}' on try "
+                    + f"{i + 1}."
+                )
                 return
             self.remove_guess()
             self.update_patterns(response)
             self.apply_patterns()
             self.log.debug(f"Remaining word count: {len(self.wordlist)}")
-            best_guess = self.get_best_guess()
+            best_guesses = self.get_best_guesses()
             if self.answer:
-                self.current_guess = best_guess
+                self.current_guess = best_guesses[0]
             else:
-                self.current_guess = ''
-                self.log.info(f"Current best guess is {best_guess}.")
+                self.current_guess = ""
+                g_str = "guess"
+                if self.top > 1:
+                    g_str = "guesses"
+                self.log.info(
+                    f"Current best {g_str}: "
+                    + f"{', '.join(best_guesses[:self.top])}"
+                )
         raise ValueError("Maximum #guesses ({self.max_guesses}) exceeded!")
 
     def load_wordlist(self, filename):
         with open(filename) as f:
-            wl=f.read().split()
-        wl = [ x.lower() for x in wl ]
-        wl=list(set(wl))  # Deduplicate
-        wl = [ x for x in wl if len(x) == self.word_length ]
+            wl = f.read().split()
+        wl = [x.lower() for x in wl]
+        wl = list(set(wl))  # Deduplicate
+        wl = [x for x in wl if len(x) == self.word_length]
         self.wordlist = wl
-            
-        
-    def enter_guess(self, guess='') -> None:
+
+    def enter_guess(self, guess="") -> None:
         if guess:
             self.current_guess = guess
             return
@@ -113,26 +128,28 @@ class Wordle:
             if len(guess) == self.word_length:
                 if guess in self.wordlist:
                     break
-            print (f"{guess} is not in the currently-allowed list.")
+            print(f"{guess} is not in the currently-allowed list.")
         self.current_guess = guess
 
-    def enter_response(self, response='') -> str:
+    def enter_response(self, response="") -> str:
         if response:
             return response  # for testing
         while True:
-            response = input("Enter response: . = 'no', ! = 'correct', " +
-                             "? = 'in word, wrong position' > ")
+            response = input(
+                "Enter response: . = 'no', ! = 'correct', "
+                + "? = 'in word, wrong position' > "
+            )
             if len(response) != self.word_length:
                 continue
             s_r = set(response)
-            okset = set(['.','!','?'])
+            okset = set([".", "!", "?"])
             if s_r <= okset:
                 return response
 
     def calculate_response(self) -> str:
         ans = self.answer
         guess = self.current_guess
-        resp = ''
+        resp = ""
         for idx, c in enumerate(self.current_guess):
             if c == self.answer[idx]:
                 resp = f"{resp}!"
@@ -143,51 +160,52 @@ class Wordle:
             resp = f"{resp}."
         self.log.debug(f"Response is {resp}")
         return resp
-            
+
     def remove_guess(self):
         self.wordlist.remove(self.current_guess)
 
-            
-    def update_patterns(self, pattern:str) -> None:
+    def update_patterns(self, pattern: str) -> None:
         self.log.debug(f"current_guess: {self.current_guess}")
         for idx, ch in enumerate(pattern):
             c = self.current_guess[idx]
-            p_i = idx+1
+            p_i = idx + 1
             current_set = self.re_list[p_i]
-            if not current_set.startswith('[^') and current_set != '.':
+            if not current_set.startswith("[^") and current_set != ".":
                 # We know what letter it is.  Keep going.
                 continue
-            if ch == '!':
+            if ch == "!":
                 # This is correct
                 self.re_list[p_i] = c
-            elif ch == '?':
+            elif ch == "?":
                 # This letter is in the word, but not in that place
-                if current_set == '.':
+                if current_set == ".":
                     current_set = f"[^{c}]"
                 else:
-                    setlets = current_set[2:-1]
+                    setlets = str(current_set)[2:-1]
                     current_lets = set(setlets)
-                    current_set = current_lets | {c}
+                    current_set = str(current_lets | {c})
                     current_set = f"[^{''.join(current_set)}]"
                 self.re_list[p_i] = current_set
                 self.include_letters = self.include_letters | {c}
-            elif ch == '.':
+            elif ch == ".":
                 self.exclude_letters = self.exclude_letters | {c}
             else:
                 raise ValueError(f"Response character {ch} not in '.?!'")
         self.log.debug(f"include: {self.include_letters}")
-        self.log.debug(f"exclude: {self.exclude_letters}")        
-                                    
+        self.log.debug(f"exclude: {self.exclude_letters}")
+
     def apply_patterns(self) -> None:
         # First get rid of anything that doesn't have all of the letters we
         #  know we need, or has any letters we know we don't want.
-        self.log.debug(f"before applying patterns: {len(self.wordlist)} " +
-                       "words remain.")
+        self.log.debug(
+            f"before applying patterns: {len(self.wordlist)} "
+            + "words remain."
+        )
         filtered = []
         for w in self.wordlist:
-            wset=set(w)
+            wset = set(w)
             if self.exclude_letters:
-                overlap=self.exclude_letters & wset
+                overlap = self.exclude_letters & wset
                 if len(overlap) > 0:
                     continue
             if self.include_letters:
@@ -198,66 +216,90 @@ class Wordle:
                 filtered.append(w)
         self.log.debug(f"After filtering: {len(filtered)} words remain.")
         updated = []
-        re_str = ''.join(self.re_list)
+        re_str = "".join(self.re_list)
         regex = re.compile(re_str)
         self.log.debug(f"matching regex: {regex}")
         for w in filtered:
             if re.match(regex, w) is not None:
                 updated.append(w)
         updated = list(set(updated))
-        self.log.debug(f"After regex application: {len(updated)} " +
-                       "words remain.")
+        self.log.debug(
+            f"After regex application: {len(updated)} " + "words remain."
+        )
         self.wordlist = updated
 
-
-    def get_best_guess(self) -> str:
+    def get_best_guesses(self) -> List[str]:
         weights = self.get_weights(self.wordlist)
         weighted_guesses = self.sort_by_weight(weights)
         guesses = self.prefer_unrepeated(weighted_guesses)
         if len(guesses) < 1:
             raise ValueError("Out of possible words!")
-        best_guess = guesses[0]
+        best_guess = guesses[: self.top]
         return best_guess
-                                    
+
     def get_weights(self, words: List[str]) -> Dict[str, float]:
         weights = {}
         for word in words:
-            weights[word] = sum([ self.letterfrequency[c] for c in word ])
+            weights[word] = sum([self.letterfrequency[c] for c in word])
         return weights
 
-    def sort_by_weight(self, weights: Dict[str,float]) -> List[str]:
-        return [x[0] for x in sorted(
-            weights.items(), key=lambda y: y[1], reverse=True)]
+    def sort_by_weight(self, weights: Dict[str, float]) -> List[str]:
+        return [
+            x[0]
+            for x in sorted(weights.items(), key=lambda y: y[1], reverse=True)
+        ]
 
     def prefer_unrepeated(self, guesses: List[str]) -> List[str]:
         # We prefer to repeat as few letters as possible, so we can eliminate
         # more at each stage.  This relies on sorted() being stable, but that
         # is indeed guaranteed.
-        diff_ltrs={}
+        diff_ltrs = {}
         for word in guesses:
             diff_ltrs[word] = len(set(word))
-        return [x[0] for x in sorted(
-            diff_ltrs.items(), key=lambda y: y[1], reverse=True)]
+        return [
+            x[0]
+            for x in sorted(
+                diff_ltrs.items(), key=lambda y: y[1], reverse=True
+            )
+        ]
 
-    def emit(self, guesses: List[str]) -> None:
-        print("\n".join(guesses))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Solve a Wordle puzzle")
-    parser.add_argument('-a', '--answer', help='the correct word',
-                        default='')
-    parser.add_argument('-d', '--debug', help='debug',
-                        action='store_true', default=False)
-    parser.add_argument('-f', '--file', help='file of allowable words',
-                        default='/usr/share/dict/words')
-    parser.add_argument('-g', '--guesses', help='number of guesses',
-                        default=6, type=int)
-    parser.add_argument('-i', '--initial-guess', help='initial guess',
-                        default='')
-    parser.add_argument('-l', '--length', help='word length', type=int,
-                        default=5)
+    parser.add_argument("-a", "--answer", help="the correct word", default="")
+    parser.add_argument(
+        "-d", "--debug", help="debug", action="store_true", default=False
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        help="file of allowable words",
+        default="/usr/share/dict/words",
+    )
+    parser.add_argument(
+        "-g", "--guesses", help="number of guesses", default=6, type=int
+    )
+    parser.add_argument(
+        "-i", "--initial-guess", help="initial guess", default=""
+    )
+    parser.add_argument(
+        "-l", "--length", help="word length", type=int, default=5
+    )
+    parser.add_argument(
+        "-t",
+        "--top",
+        help="# of guesses to display (interactive)",
+        type=int,
+        default=5,
+    )
     args = parser.parse_args()
-    w = Wordle(wordlist_file=args.file, debug=args.debug,
-               word_length=args.length, guesses=args.guesses,
-               answer=args.answer, initial_guess=args.initial_guess)
+    w = Wordle(
+        wordlist_file=args.file,
+        debug=args.debug,
+        word_length=args.length,
+        guesses=args.guesses,
+        answer=args.answer,
+        initial_guess=args.initial_guess,
+        top=args.top,
+    )
     w.main_loop()
