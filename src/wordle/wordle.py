@@ -42,13 +42,17 @@ class Wordle:
         self.re_list.append("$")
         self.load_wordlist(word_list_file)
         self.word_frequency: Dict[str, int] = {}
-        if word_frequency_file:
-            self.load_wordfreq(word_frequency_file)
         self.match_pattern = "....."
         if not self.current_guess:
             # Pick the most-common-letters-word from the wordlist
             self.current_guess = self.get_best_guesses()[0]
             self.log.info(f"Best initial guess: {self.current_guess}")
+        if word_frequency_file:
+            # Do this after you pick the initial guess; picking the most
+            # common word would be silly.  If you load a word frequency
+            # file at all, this solver assumes you mean to solve with
+            # word frequency rather than letter frequency.
+            self.load_wordfreq(word_frequency_file)
         self.log.debug(
             f"Initialized: wordlist {word_list_file}, "
             + f"word count {len(self.wordlist)}, "
@@ -83,6 +87,14 @@ class Wordle:
         raise ValueError("Maximum #guesses ({self.max_guesses}) exceeded!")
 
     def load_wordlist(self, filename: str) -> None:
+        # /usr/share/dict/words is pretty canonical.  /usr/dict/words on
+        # older Unixes.
+        #
+        # The actual Wordle wordlist can be found at:
+        # https://gist.github.com/cfreshman/a03ef2cba789d8cf00c08f767e0fad7b
+        #
+        # Words you're allowed to guess in Wordle are at:
+        # https://gist.github.com/cfreshman/cdcdf777450c5b5301e439061d29694c
         with open(filename) as f:
             wl = f.read().split()
         wl = [x.lower() for x in wl]
@@ -97,6 +109,10 @@ class Wordle:
         # That file is MIT licensed.
         #
         # If you use something else, put it in that form.
+        #
+        # If you're doing this a lot, you probably want to create pre-filtered
+        #  frequency files to match your wordlists, so you don't have to
+        #  scan 1/3 of a million words each time you run.
         freq: Dict[str, int] = {}
         self.log.debug(f"Loading word frequency file {filename}")
         l_num = 0
