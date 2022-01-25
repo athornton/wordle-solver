@@ -47,3 +47,10 @@ default is 5).
 
 `--debug` will emit copious output about what the solver is doing as it
 does it.
+
+## Developing
+
+If you want to play around with this yourself, ``make init`` will set up
+the pre-commit hooks for you.  Maybe I'll get around to writing some
+tests for it.  It has no external requirements: everything in it is in
+the Python 3.8 standard library.
