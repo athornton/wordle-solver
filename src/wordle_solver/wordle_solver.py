@@ -17,19 +17,31 @@ class WordleSolver:
     guesses are allowed.
     """
 
+    # Yes, the WordleSolver has a lot of attributes, and yes, I like using
+    #  short variable names in my methods.  And I really don't care if I burn
+    #  a few hundred microseconds interpolating a string I'm not going to
+    #  emit.
+
+    # pylint: disable="too-many-instance-attributes"
+    # pylint: disable="invalid-name"
+    # pylint: disable="logging-not-lazy"
+    # pylint: disable="logging-fstring-interpolation"
+
     def __init__(
         self,
         word_list_file: str = "/usr/share/dict/words",
         word_length: int = 5,
-        hard_mode: bool = True,
+        easy_mode: bool = False,
         relax_repeats: bool = False,
         answer: str = "",
         guesses: int = 6,
         initial_guess: str = "",
         top: int = 5,
         word_frequency_file: str = "",
+        character_frequency_file: str = "",
+        dynamic_character_frequency: bool = False,
         debug: bool = False,
-    ):
+    ):  # pylint: disable="too-many-arguments"
         self.log = logging.getLogger(__name__)
         level = logging.INFO
         if debug:
@@ -39,9 +51,9 @@ class WordleSolver:
         self.answer = answer
         self.max_guesses = guesses
         self.top = top
-        self.hard_mode = hard_mode
-        if not hard_mode:
-            raise NotImplementedError("Not-hard mode not yet implemented")
+        self.easy_mode = easy_mode
+        if easy_mode:
+            raise NotImplementedError("Easy mode not yet implemented")
         self.relax_repeats = relax_repeats
         self.exclude_letters: Set[str] = set()
         self.include_letters: Set[str] = set()
@@ -52,10 +64,26 @@ class WordleSolver:
             self.re_list.append(".")
         self.re_list.append("$")
         self.wordlist: List[str] = []
+        self.character_frequency = letterfrequency
         self.word_frequency: Dict[str, int] = {}
         self.load_wordlist(word_list_file)
         self.attempt: int = 1
         self.match_pattern = "." * self.word_length
+        # The ordering here is slightly tricky.
+        # By default, you get the character frequencies in letterfrequency.py.
+        # If you are specifying your own character frequency file
+        # (for instance, you'd rather use freqencies-of-characters-in-
+        # the-dictionary rather than in-text, or you want digits because
+        # you're going to play Primel instead), do that here so that
+        # the first best guess can be used.
+        if character_frequency_file:
+            self.character_frequency = self.load_frequency_file(
+                character_frequency_file, char=True
+            )
+        # Or, you can use the actual frequency from your input wordlist
+        if dynamic_character_frequency:
+            self.character_frequency = self.generate_frequencies()
+        # In any event, you're going to need character frequency here.
         if not self.current_guess:
             # Pick the most-common-letters-word from the wordlist
             self.current_guess = self.get_best_guesses()[0]
@@ -65,7 +93,7 @@ class WordleSolver:
             # common word would be silly.  If you load a word frequency
             # file at all, this solver assumes you mean to solve with
             # word frequency rather than letter frequency.
-            self.load_wordfreq(word_frequency_file)
+            self.word_frequency = self.load_frequency_file(word_frequency_file)
         self.log.debug(
             f"Initialized: wordlist {word_list_file}, "
             + f"word count {len(self.wordlist)}, "
@@ -88,16 +116,22 @@ class WordleSolver:
         # Words you're allowed to guess in Wordle are at:
         # https://gist.github.com/cfreshman/cdcdf777450c5b5301e439061d29694c
         with open(filename, encoding="utf-8") as f:
-            wl = f.read().split()
-        wl = [x.lower() for x in wl]
-        wl = list(set(wl))  # Deduplicate
-        wl = [x for x in wl if len(x) == self.word_length]
-        self.wordlist = wl
+            wordlist = f.read().split()
+        wordlist = [x.lower() for x in wordlist]
+        wordlist = list(set(wordlist))  # Deduplicate
+        wordlist = [x for x in wordlist if len(x) == self.word_length]
+        self.wordlist = wordlist
 
-    def load_wordfreq(self, filename: str) -> None:
+    def load_frequency_file(
+        self, filename: str, char=False
+    ) -> Mapping[str, Union[int, float]]:
         """
         Just like load_wordlist, but it expects each word to have whitespace
         after that and then a frequency count.
+
+        If char is true, you're loading a character-frequency file, in which
+        case, "word length" is 1 and we skip the check to see if that word
+        is in the word list.
         """
         # I am using Peter Norvig's "count_1w.txt" from
         # http://norvig.com/ngrams/count_1w.txt
@@ -107,20 +141,39 @@ class WordleSolver:
         #  frequency files to match your wordlists, so you don't have to
         #  scan 1/3 of a million words each time you run.
         freq: Dict[str, int] = {}
-        self.log.debug(f"Loading word frequency file {filename}")
+        self.log.debug(f"Loading frequency file {filename}")
         l_num = 0
+        word_length = self.word_length
+        if char:
+            word_length = 1
         with open(filename, encoding="utf-8") as f:
             for line in f:
                 l_num += 1
                 fields = line.strip().split()
                 word, count = fields[0], int(fields[1])
-                if len(word) != self.word_length:
+                if len(word) != word_length:
                     continue
-                if word not in self.wordlist:
+                if word not in self.wordlist and not char:
                     continue
                 freq[word] = count
-        self.word_frequency = freq
-        self.log.debug(f"Considered {l_num} words, kept {len(freq)}.")
+        if not char:
+            self.log.debug(f"Considered {l_num} words, kept {len(freq)}.")
+        return freq
+
+    def generate_frequencies(self):
+        """
+        Generate character frequency from the actual word list (which is
+        already lowercased and deduplicated).
+        """
+        cf = {}
+        for w in self.wordlist:
+            for c in w:
+                if c not in cf:
+                    cf[c] = 1
+                else:
+                    cf[c] += 1
+        self.log.debug(f"Dynamic character frequencies: {cf}")
+        return cf
 
     def main_loop(self) -> None:
         """
@@ -370,7 +423,7 @@ class WordleSolver:
         """
         weights = {}
         for word in self.wordlist:
-            weights[word] = sum([letterfrequency[c] for c in word])
+            weights[word] = sum([self.character_frequency[c] for c in word])
         return weights
 
     def sort_by_weight(

@@ -9,25 +9,27 @@ import pytest
 from wordle_solver.exceptions import OutOfGuesses
 from wordle_solver.wordle_solver import WordleSolver
 
+# The usual name for a solver in the test file is going to be "w".
+# pylint: disable="invalid-name"
 
-def test_minimal_wordle_class(data: Dict[str, str]) -> None:
+
+def test_minimal_wordle_class(standard_solver: WordleSolver) -> None:
     """
     Create a minimal WordleSolver and verify its attributes.
     """
-    w = WordleSolver(word_list_file=data["5w"])
-    assert w.word_length == 5
-    assert w.top == 5
-    assert w.max_guesses == 6
-    assert w.relax_repeats is False
-    assert w.log.level == logging.INFO
-    assert len(w.wordlist) == 1000
-    assert w.include_letters == set()
-    assert w.exclude_letters == set()
-    assert "".join(w.re_list) == "^.....$"
-    assert w.attempt == 1
-    assert w.match_pattern == "....."
-    assert w.answer == ""
-    assert len(w.word_frequency) == 0
+    assert standard_solver.word_length == 5
+    assert standard_solver.top == 5
+    assert standard_solver.max_guesses == 6
+    assert standard_solver.relax_repeats is False
+    assert standard_solver.log.level == logging.INFO
+    assert len(standard_solver.wordlist) == 1000
+    assert standard_solver.include_letters == set()
+    assert standard_solver.exclude_letters == set()
+    assert "".join(standard_solver.re_list) == "^.....$"
+    assert standard_solver.attempt == 1
+    assert standard_solver.match_pattern == "....."
+    assert standard_solver.answer == ""
+    assert len(standard_solver.word_frequency) == 0
 
 
 def test_wordle_class_parameters(data: Dict[str, str]) -> None:
@@ -58,63 +60,49 @@ def test_wordle_class_parameters(data: Dict[str, str]) -> None:
     assert len(w.word_frequency) == 800
 
 
-def test_success(data: Dict[str, str]) -> None:
+def test_success(standard_solver: WordleSolver) -> None:
     """
     Ensure the happy path works.
     """
-    w = WordleSolver(
-        word_list_file=data["5w"],
-        word_frequency_file=data["5f"],
-        answer="happy",
-    )
-    w.main_loop()
-    assert w.current_guess == w.answer
+    standard_solver.answer = "happy"
+    standard_solver.main_loop()
+    assert standard_solver.current_guess == standard_solver.answer
 
 
 @pytest.mark.xfail(raises=OutOfGuesses)
-def test_failure(data: Dict[str, str]) -> None:
+def test_failure(standard_solver) -> None:
     """
     Ensure we fail as expected if we run out of guesses.
     """
-    w = WordleSolver(word_list_file=data["5w"], answer="watch", guesses=3)
-    w.main_loop()
+    standard_solver.answer = "watch"
+    standard_solver.guesses = 3
+    standard_solver.main_loop()
 
 
 @pytest.mark.xfail(raises=NotImplementedError)
-def test_not_hard_mode(data: Dict[str, str]) -> None:
+def test_easy_mode_failure(data: Dict[str, str]) -> None:
     """
-    Check that we fail (for now) if we try to turn hard mode off.
+    Check that we fail (for now) in __init__ if we try to enable easy mode.
     """
-    w = WordleSolver(
-        word_list_file=data["5w"], answer="error", hard_mode=False
-    )
-    w.main_loop()
+    _ = WordleSolver(word_list_file=data["5w"], easy_mode=True)
 
 
-def test_relax_repeats(data: Dict[str, str]) -> None:
-    """
-    Verify that we get different answers if we turn off repeated-letter
-    rejection or a known word list.
-    """
+def test_dynamic_letter_frequencies(
+    standard_solver, data: Dict[str, str]
+) -> None:
     w = WordleSolver(
-        word_list_file=data["5w"], answer="sissy", initial_guess="atone"
+        word_list_file=data["5w"], dynamic_character_frequency=True
     )
-    w.wordlist = ["atone", "kissy", "missy", "sissy"]
-    initial_length = len(w.wordlist)
-    w.main_loop()
-    first = w.attempt
-    assert first == initial_length  # Because all candidates already have
-    # 's' in them, the solver will choose 'sissy' last of all.
+    assert w.character_frequency != standard_solver.character_frequency
+
+
+def test_custom_letter_frequencies(
+    standard_solver, data: Dict[str, str]
+) -> None:
     w = WordleSolver(
-        word_list_file=data["5w"],
-        answer="sissy",
-        initial_guess="atone",
-        relax_repeats=True,
+        word_list_file=data["5w"], character_frequency_file=data["ff"]
     )
-    w.wordlist = ["atone", "kissy", "missy", "sissy"]
-    w.main_loop()
-    assert w.attempt < first  # But 's' is more common than 'm' and 'k',
-    # so this time it will have been chosen sooner.
+    assert w.character_frequency != standard_solver.character_frequency
 
 
 def test_word_freq(data: Dict[str, str]) -> None:
@@ -164,3 +152,29 @@ def test_internal_state(data: Dict[str, str]) -> None:
     assert w.include_letters == set(["a", "e", "n"])
     assert w.exclude_letters == set(["b", "u", "t", "o", "i", "l"])
     assert "".join(w.re_list) == "^..[^n][^e][^a]r$"
+
+
+def test_relax_repeats(data: Dict[str, str]) -> None:
+    """
+    Verify that we get different answers if we turn off repeated-letter
+    rejection or a known word list.
+    """
+    w = WordleSolver(
+        word_list_file=data["5w"], answer="sissy", initial_guess="atone"
+    )
+    w.wordlist = ["atone", "kissy", "missy", "sissy"]
+    initial_length = len(w.wordlist)
+    w.main_loop()
+    first = w.attempt
+    assert first == initial_length  # Because all candidates already have
+    # 's' in them, the solver will choose 'sissy' last of all.
+    w = WordleSolver(
+        word_list_file=data["5w"],
+        answer="sissy",
+        initial_guess="atone",
+        relax_repeats=True,
+    )
+    w.wordlist = ["atone", "kissy", "missy", "sissy"]
+    w.main_loop()
+    assert w.attempt < first  # But 's' is more common than 'm' and 'k',
+    # so this time it will have been chosen sooner.

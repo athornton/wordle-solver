@@ -16,7 +16,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Solve a Wordle puzzle")
     parser.add_argument("-a", "--answer", help="the correct word", default="")
     parser.add_argument(
+        "-c",
+        "--character-frequency-file",
+        help="File containing characters and their relative frequency",
+    )
+    parser.add_argument(
         "-d", "--debug", help="debug", action="store_true", default=False
+    )
+    parser.add_argument(
+        "-e",
+        "--easy-mode",
+        help="easy mode (not yet implemented)",
+        action="store_true",
+        default=False,
     )
     parser.add_argument(
         "-f",
@@ -50,21 +62,31 @@ def main() -> None:
     parser.add_argument(
         "-w",
         "--word-frequency-file",
-        help="File containing words and their frequency",
+        help="File containing words and their relative frequency",
+    )
+    parser.add_argument(
+        "-y",
+        "--dynamic_character_frequency",
+        help="generate character frequency from word list",
+        action="store_true",
+        default=False,
     )
     args = parser.parse_args()
-    w = WordleSolver(
+    solver = WordleSolver(
         word_list_file=args.file,
+        character_frequency_file=args.character_frequency_file,
         word_frequency_file=args.word_frequency_file,
         debug=args.debug,
+        easy_mode=args.easy_mode,
         word_length=args.length,
         guesses=args.guesses,
         answer=args.answer,
         initial_guess=args.initial_guess,
         relax_repeats=args.relax_repeats,
         top=args.top,
+        dynamic_character_frequency=args.dynamic_character_frequency,
     )
-    w.main_loop()
+    solver.main_loop()
 
 
 if __name__ == "__main__":

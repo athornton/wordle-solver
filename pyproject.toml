@@ -59,18 +59,3 @@ python_files = [
     "tests/*.py",
     "tests/*/*.py"
 ]
-
-[tool.pylint.messages_control]
-max-line-length = 79
-# Respectively: I don't care if I take a couple hundred extra microseconds
-# interpolating a string I don't emit, yes, I have a lot of very short
-# variable names in simple methods, and, yes, there are a lot of arguments
-# and attributes on the WordleSolver class because it has a lot of ways
-# you can tweak it.
-disable = [
-	"logging-not-lazy",
-	"logging-fstring-interpolation",
-	"invalid-name",
-	"too-many-arguments",
-	"too-many-instance-attributes"
-	]
