@@ -2,7 +2,7 @@
 
 import argparse
 
-from .wordle import Wordle
+from .wordle_solver import WordleSolver
 
 
 def main() -> None:
@@ -46,7 +46,7 @@ def main() -> None:
         help="File containing words and their frequency",
     )
     args = parser.parse_args()
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=args.file,
         word_frequency_file=args.word_frequency_file,
         debug=args.debug,

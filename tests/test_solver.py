@@ -3,11 +3,12 @@ from typing import Dict
 
 import pytest
 
-from wordle.wordle import OutOfGuesses, Wordle
+from wordle_solver.exceptions import OutOfGuesses
+from wordle_solver.wordle_solver import WordleSolver
 
 
 def test_minimal_wordle_class(data: Dict[str, str]) -> None:
-    w = Wordle(word_list_file=data["5w"])
+    w = WordleSolver(word_list_file=data["5w"])
     assert w.word_length == 5
     assert w.top == 5
     assert w.max_guesses == 6
@@ -24,7 +25,7 @@ def test_minimal_wordle_class(data: Dict[str, str]) -> None:
 
 
 def test_wordle_class_parameters(data: Dict[str, str]) -> None:
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["6w"],
         word_frequency_file=data["6f"],
         word_length=6,
@@ -49,7 +50,7 @@ def test_wordle_class_parameters(data: Dict[str, str]) -> None:
 
 
 def test_success(data: Dict[str, str]) -> None:
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["5w"],
         word_frequency_file=data["5f"],
         answer="happy",
@@ -60,18 +61,20 @@ def test_success(data: Dict[str, str]) -> None:
 
 @pytest.mark.xfail(raises=OutOfGuesses)
 def test_failure(data: Dict[str, str]) -> None:
-    w = Wordle(word_list_file=data["5w"], answer="watch", guesses=3)
+    w = WordleSolver(word_list_file=data["5w"], answer="watch", guesses=3)
     w.main_loop()
 
 
 @pytest.mark.xfail(raises=NotImplementedError)
 def test_not_hard_mode(data: Dict[str, str]) -> None:
-    w = Wordle(word_list_file=data["5w"], answer="error", hard_mode=False)
+    w = WordleSolver(
+        word_list_file=data["5w"], answer="error", hard_mode=False
+    )
     w.main_loop()
 
 
 def test_relax_repeats(data: Dict[str, str]) -> None:
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["5w"], answer="sissy", initial_guess="atone"
     )
     w.wordlist = ["atone", "kissy", "missy", "sissy"]
@@ -80,7 +83,7 @@ def test_relax_repeats(data: Dict[str, str]) -> None:
     first = w.attempt
     assert first == initial_length  # Because all candidates already have
     # 's' in them, the solver will choose 'sissy' last of all.
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["5w"],
         answer="sissy",
         initial_guess="atone",
@@ -93,7 +96,7 @@ def test_relax_repeats(data: Dict[str, str]) -> None:
 
 
 def test_word_freq(data: Dict[str, str]) -> None:
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["6w"],
         word_frequency_file=data["6f"],
         answer="answer",
@@ -102,7 +105,7 @@ def test_word_freq(data: Dict[str, str]) -> None:
     )
     w.loop_once()
     first_guess = w.current_guess  # 'change', as it happens
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["6w"],
         answer="answer",
         word_length=6,
@@ -114,7 +117,7 @@ def test_word_freq(data: Dict[str, str]) -> None:
 
 
 def test_internal_state(data: Dict[str, str]) -> None:
-    w = Wordle(
+    w = WordleSolver(
         word_list_file=data["6w"],
         answer="answer",
         word_length=6,
