@@ -7,6 +7,14 @@ from typing import Dict, List, Mapping, Set, Union
 from .letterfrequency import letterfrequency
 
 
+class AnswerFound(Exception):
+    pass
+
+
+class OutOfGuesses(Exception):
+    pass
+
+
 class Wordle:
     def __init__(
         self,
@@ -26,11 +34,13 @@ class Wordle:
         if debug:
             level = logging.DEBUG
         logging.basicConfig(level=level)
+        self.log.setLevel(level)
         self.answer = answer
         self.max_guesses = guesses
         self.top = top
         self.hard_mode = hard_mode
-        assert hard_mode  # Haven't yet implemented non-hard-mode
+        if not hard_mode:
+            raise NotImplementedError("Not-hard mode not yet implemented")
         self.relax_repeats = relax_repeats
         self.exclude_letters: Set[str] = set()
         self.include_letters: Set[str] = set()
@@ -42,11 +52,12 @@ class Wordle:
         self.re_list.append("$")
         self.load_wordlist(word_list_file)
         self.word_frequency: Dict[str, int] = {}
-        self.match_pattern = "....."
+        self.attempt: int = 1
+        self.match_pattern = "." * self.word_length
         if not self.current_guess:
             # Pick the most-common-letters-word from the wordlist
             self.current_guess = self.get_best_guesses()[0]
-            self.log.info(f"Best initial guess: {self.current_guess}")
+            self.log.info(f"Best initial guess: '{self.current_guess}'")
         if word_frequency_file:
             # Do this after you pick the initial guess; picking the most
             # common word would be silly.  If you load a word frequency
@@ -58,33 +69,6 @@ class Wordle:
             + f"word count {len(self.wordlist)}, "
             + f"word length {word_length}."
         )
-
-    def main_loop(self) -> None:
-        for i in range(self.max_guesses):
-            if not self.current_guess:
-                self.enter_guess()
-            self.log.info(f"Guessing try #{i + 1}: '{self.current_guess}'")
-            if not self.answer:
-                self.enter_response()
-            else:
-                self.calculate_response()
-            if self.match_pattern == "!" * self.word_length:
-                # That's it
-                self.log.info(
-                    f"Answer found: '{self.current_guess}' on try "
-                    + f"{i + 1}."
-                )
-                return
-            self.remove_guess()
-            self.update_patterns()
-            self.apply_patterns()
-            self.log.debug(f"Remaining word count: {len(self.wordlist)}")
-            best_guesses = self.get_best_guesses()
-            if self.answer:
-                self.current_guess = best_guesses[0]
-            else:
-                self.current_guess = ""
-        raise ValueError("Maximum #guesses ({self.max_guesses}) exceeded!")
 
     def load_wordlist(self, filename: str) -> None:
         # /usr/share/dict/words is pretty canonical.  /usr/dict/words on
@@ -128,6 +112,47 @@ class Wordle:
                 freq[word] = count
         self.word_frequency = freq
         self.log.debug(f"Considered {l_num} words, kept {len(freq)}.")
+
+    def main_loop(self) -> None:
+        for i in range(self.max_guesses):
+            try:
+                self.loop_once()
+                self.attempt += 1
+            except AnswerFound as answer:
+                self.log.info(answer)
+                return
+        raise OutOfGuesses("Maximum #guesses ({self.max_guesses}) exceeded!")
+
+    def loop_once(self) -> None:
+        self.get_guess_and_response()
+        self.test_if_complete()
+        self.remove_guess()
+        self.update_patterns()
+        self.apply_patterns()
+        self.log.debug(f"Remaining word count: {len(self.wordlist)}")
+        best_guesses = self.get_best_guesses()
+        if self.answer:
+            self.current_guess = best_guesses[0]
+        else:
+            self.current_guess = ""
+
+    def get_guess_and_response(self) -> None:
+        if not self.current_guess:
+            self.enter_guess()
+        self.log.info(f"Guessing try #{self.attempt}: '{self.current_guess}'")
+        if not self.answer:
+            self.enter_response()
+        else:
+            self.calculate_response()
+
+    def test_if_complete(self) -> None:
+        if self.match_pattern == "!" * self.word_length:
+            # That's it
+            correct = (
+                f"Answer found: '{self.current_guess}' "
+                + f"on attempt {self.attempt}."
+            )
+            raise AnswerFound(correct)
 
     def enter_guess(self, guess: str = "") -> None:
         if guess:
