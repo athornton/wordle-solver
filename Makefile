@@ -3,7 +3,7 @@ init:
 	pip install --editable .
 	pip install --upgrade pip-tools pip setuptools
 	rm -rf .tox
-	pip install --upgrade tox pre-commit
+	pip install --upgrade tox pre-commit pytest
 	pre-commit install
 
 .PHONY: update

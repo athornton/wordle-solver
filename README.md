@@ -51,6 +51,6 @@ does it.
 ## Developing
 
 If you want to play around with this yourself, ``make init`` will set up
-the pre-commit hooks for you.  Maybe I'll get around to writing some
-tests for it.  It has no external requirements: everything in it is in
-the Python 3.8 standard library.
+the pre-commit hooks for you.  The solver itself has no external
+requirements: everything in it is in the Python 3.8 standard library;
+however, the test suite and pre-commit hooks have some requirements.
