@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+"""
+This is the main class for a Wordle solver.
+"""
 
 import logging
 import re
@@ -9,6 +11,12 @@ from .letterfrequency import letterfrequency
 
 
 class WordleSolver:
+    """
+    Solve a Wordle-style puzzle.  Word length and whether to use word
+    frequency or just letter frequency are options, as are how many
+    guesses are allowed.
+    """
+
     def __init__(
         self,
         word_list_file: str = "/usr/share/dict/words",
@@ -40,11 +48,12 @@ class WordleSolver:
         self.word_length: int = word_length
         self.current_guess = initial_guess
         self.re_list: List[str] = ["^"]
-        for i in range(word_length):
+        for _ in range(word_length):
             self.re_list.append(".")
         self.re_list.append("$")
-        self.load_wordlist(word_list_file)
+        self.wordlist: List[str] = []
         self.word_frequency: Dict[str, int] = {}
+        self.load_wordlist(word_list_file)
         self.attempt: int = 1
         self.match_pattern = "." * self.word_length
         if not self.current_guess:
@@ -64,6 +73,12 @@ class WordleSolver:
         )
 
     def load_wordlist(self, filename: str) -> None:
+        """
+        Ingest the word list.  Note that this is separate from the
+        word_length parameter, because you may well want to use a standard
+        dictionary and restrict by length without needing to produce the
+        filtered directory as its own file.
+        """
         # /usr/share/dict/words is pretty canonical.  /usr/dict/words on
         # older Unixes.
         #
@@ -72,7 +87,7 @@ class WordleSolver:
         #
         # Words you're allowed to guess in Wordle are at:
         # https://gist.github.com/cfreshman/cdcdf777450c5b5301e439061d29694c
-        with open(filename) as f:
+        with open(filename, encoding="utf-8") as f:
             wl = f.read().split()
         wl = [x.lower() for x in wl]
         wl = list(set(wl))  # Deduplicate
@@ -80,12 +95,13 @@ class WordleSolver:
         self.wordlist = wl
 
     def load_wordfreq(self, filename: str) -> None:
+        """
+        Just like load_wordlist, but it expects each word to have whitespace
+        after that and then a frequency count.
+        """
         # I am using Peter Norvig's "count_1w.txt" from
         # http://norvig.com/ngrams/count_1w.txt
-        # The format's pretty simple: lower-cased-word <whitespace> count
         # That file is MIT licensed.
-        #
-        # If you use something else, put it in that form.
         #
         # If you're doing this a lot, you probably want to create pre-filtered
         #  frequency files to match your wordlists, so you don't have to
@@ -93,7 +109,7 @@ class WordleSolver:
         freq: Dict[str, int] = {}
         self.log.debug(f"Loading word frequency file {filename}")
         l_num = 0
-        with open(filename) as f:
+        with open(filename, encoding="utf-8") as f:
             for line in f:
                 l_num += 1
                 fields = line.strip().split()
@@ -107,7 +123,10 @@ class WordleSolver:
         self.log.debug(f"Considered {l_num} words, kept {len(freq)}.")
 
     def main_loop(self) -> None:
-        for i in range(self.max_guesses):
+        """
+        This continues until it runs out of guesses or finds the answer.
+        """
+        for _ in range(self.max_guesses):
             try:
                 self.loop_once()
                 self.attempt += 1
@@ -117,6 +136,9 @@ class WordleSolver:
         raise OutOfGuesses("Maximum #guesses ({self.max_guesses}) exceeded!")
 
     def loop_once(self) -> None:
+        """
+        This is the logic for acquiring, testing, and refining a single guess.
+        """
         self.get_guess_and_response()
         self.test_if_complete()
         self.remove_guess()
@@ -130,6 +152,9 @@ class WordleSolver:
             self.current_guess = ""
 
     def get_guess_and_response(self) -> None:
+        """
+        Get a guess and a response either interactively or noninteractively.
+        """
         if not self.current_guess:
             self.enter_guess()
         self.log.info(f"Guessing try #{self.attempt}: '{self.current_guess}'")
@@ -139,6 +164,9 @@ class WordleSolver:
             self.calculate_response()
 
     def test_if_complete(self) -> None:
+        """
+        Did we find the word?
+        """
         if self.match_pattern == "!" * self.word_length:
             # That's it
             correct = (
@@ -148,6 +176,9 @@ class WordleSolver:
             raise AnswerFound(correct)
 
     def enter_guess(self, guess: str = "") -> None:
+        """
+        Get a guess interactively from the user.
+        """
         if guess:
             self.current_guess = guess
             return
@@ -160,10 +191,11 @@ class WordleSolver:
             print(f"{guess} is not in the currently-allowed list.")
         self.current_guess = guess
 
-    def enter_response(self, response: str = "") -> None:
-        if response:
-            self.match_pattern = response
-            return  # for testing
+    def enter_response(self) -> None:
+        """
+        Solicit a response string interactively from the user.
+        """
+        response = ""
         while True:
             response = input(
                 "Enter response: . = 'no', ! = 'correct', "
@@ -178,6 +210,9 @@ class WordleSolver:
                 break
 
     def calculate_response(self) -> None:
+        """
+        If we know the answer, calculate the response string.
+        """
         resp = ""
         for idx, c in enumerate(self.current_guess):
             if c == self.answer[idx]:
@@ -191,9 +226,17 @@ class WordleSolver:
         self.match_pattern = resp
 
     def remove_guess(self) -> None:
+        """
+        We now know *one* word that isn't the right answer.
+        """
         self.wordlist.remove(self.current_guess)
 
     def update_patterns(self) -> None:
+        """
+        This builds the regular expression that matches possible correct
+        answers, and updates the sets of letters we know are, and are not,
+        in the answer.
+        """
         self.log.debug(f"current_guess: {self.current_guess}")
         pattern = self.match_pattern
         for idx, ch in enumerate(pattern):
@@ -229,6 +272,9 @@ class WordleSolver:
         self.log.debug(f"exclude: {self.exclude_letters}")
 
     def apply_patterns(self) -> None:
+        """
+        Filter the wordlist based on the information we now have.
+        """
         # First get rid of anything that doesn't have all of the letters we
         #  know we need, or has any letters we know we don't want.
         self.log.debug(
@@ -263,6 +309,13 @@ class WordleSolver:
         self.wordlist = updated
 
     def get_best_guesses(self) -> List[str]:
+        """
+        Now we have a reduced wordlist, so we need to choose the best guesses
+        from it, for some metric of "best."
+
+        If we have a word frequency file, we'll use that; otherwise we will
+        use letter frequency.
+        """
         if self.word_frequency:
             freqs = self.get_word_frequencies()
             guesses = self.apply_frequency_metric(freqs)
@@ -284,21 +337,37 @@ class WordleSolver:
         return best_guess
 
     def get_word_frequencies(self) -> Dict[str, int]:
+        """
+        This simply builds a dictionary mapping each remaining word to its
+        frequency.
+        """
         w_freq = {}
         for w in self.wordlist:
             w_freq[w] = self.word_frequency.get(w, 0)
         return w_freq
 
     def apply_frequency_metric(self, w_freq: Dict[str, int]) -> List[str]:
-        #
-        # There's some sort of theory that we shouldn't use very common
-        #  words, because the puzzle word will be somewhat hard
-        #
-        # We can work that out later.  For right now we're just going to
-        #  sort by frequency.
+        """
+        This is (currently) a placeholder that just returns more frequent
+        words first.
+
+        In theory there's a set of metrics you could use to downweight
+        extremely common words on the theory they're too easy.  In practice
+        there just aren't all that many five-letter words that are
+        generally recognized, and it doesn't seem that Wordle tries to pick
+        particularly nasty ones, so...this may never be useful.
+        """
         return self.sort_by_weight(w_freq)
 
     def get_character_weights(self) -> Dict[str, float]:
+        """
+        Just add the frequencies of each letter in the word.  This is
+        pretty crude, because it doesn't do anything to determine common
+        bigrams and trigrams, but in practice it seems to be pretty decent.
+
+        It might also be superfluous.  The word list just isn't that large,
+        for actual Wordle, anyway.
+        """
         weights = {}
         for word in self.wordlist:
             weights[word] = sum([letterfrequency[c] for c in word])
@@ -307,20 +376,27 @@ class WordleSolver:
     def sort_by_weight(
         self, weights: Mapping[str, Union[int, float]]
     ) -> List[str]:
+        """
+        Return the words with the highest weight (meaning, summed letter
+        frequency, or word frequency) first.
+        """
+        # pylint: disable=no-self-use
         return [
             x[0]
             for x in sorted(weights.items(), key=lambda y: y[1], reverse=True)
         ]
 
     def limit_repeats(self, guesses: List[str]) -> List[str]:
-        # We prefer to repeat as few letters as possible, so we can eliminate
-        # more at each stage.  This relies on sorted() being stable, but that
-        # is indeed guaranteed.
-        #
-        # If self.relax_repeats is set, then if we have all but two
-        #  letters identified, we just return our input.  This may be an
-        #  optimization, although it's not clear whether it is a net
-        #  benefit or not.
+        """
+        We prefer to repeat as few letters as possible, so we can eliminate
+        more at each stage.  This relies on sorted() being stable, but that
+        is indeed guaranteed.
+
+        If self.relax_repeats is set, then if we have all but two
+        letters identified, we just return our input.  This may be an
+        optimization, although it's not clear whether it is a net
+        benefit or not.
+        """
         if self.relax_repeats:
             right_ltrs = self.match_pattern.count("!")
             if (self.word_length - right_ltrs) < 3:

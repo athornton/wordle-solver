@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-
+"""
+This is the CLI for the Wordle solver.  Usually I prefer click, but it's
+nice to have no external dependencies.
+"""
 import argparse
 
 from .wordle_solver import WordleSolver
 
 
 def main() -> None:
+    """
+    Create an argument parser, get our arguments, create an instance of the
+    WordleSolver class with those arguments, and start it.
+    """
     parser = argparse.ArgumentParser(description="Solve a Wordle puzzle")
     parser.add_argument("-a", "--answer", help="the correct word", default="")
     parser.add_argument(
