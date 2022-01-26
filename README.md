@@ -52,6 +52,16 @@ The input word list can be set with `--file`.  If you don't set it, you
 get `/usr/share/dict/words`.  If you want to use a word-frequency file, use
 the `--word-frequency-file` option to set it.
 
+If you want to use a different character frequency file (for instance,
+you want to use frequency of letters in dictionary words rather than in
+text, or you want to use digits as your charactes),
+`--character-frequency-file` will do that.
+
+You can also generate character frequencies with
+`--dynamic-character-frequency`, which will iterate over your word list
+to build the frequency map.  This might take a while if you had an
+enormous dictionary.
+
 You can set the initial guess with `--initial-guess`.  From a
 character-frequency standpoint, at least with the dictionaries I've been
 using, `atone` is the best starting guess.  I usually like to start with
@@ -71,6 +81,13 @@ per Wordle) and you can play with different word lengths with `--length`
 `--debug` will emit copious output about what the solver is doing as it
 does it.
 
+## Primel
+
+The solver also works fine for Primel, although you will need to give it
+a custom character frequency file, or, more easily, just use dynamic
+character frequency.  Just give it an input word list of all five-digit
+primes and use `--dynamic-character-frequency`.
+
 ## Developing
 
 If you want to play around with this yourself, ``make init`` will set up
@@ -78,4 +95,3 @@ the pre-commit hooks for you.  The solver itself has no external
 requirements: everything in it is in the Python 3.8 standard library;
 however, the test suite and pre-commit hooks have some external packages
 they require.
-
