@@ -1,3 +1,6 @@
+"""
+Test fixtures -- well, fixture -- for our unit tests.
+"""
 from os.path import dirname, join
 from typing import Dict
 
@@ -6,7 +9,9 @@ import pytest
 
 @pytest.fixture(scope="session")
 def data() -> Dict[str, str]:
-    # This is the standard five-letter dictionary-plus-frequency setup
+    """
+    This just saves us some verbiage when setting up WordleSolvers.
+    """
     datadir = join(dirname(__file__), "static")
     return {
         "5w": join(datadir, "5x1000.txt"),

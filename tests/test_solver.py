@@ -1,3 +1,6 @@
+"""
+Unit tests for the Wordle solver.
+"""
 import logging
 from typing import Dict
 
@@ -8,6 +11,9 @@ from wordle_solver.wordle_solver import WordleSolver
 
 
 def test_minimal_wordle_class(data: Dict[str, str]) -> None:
+    """
+    Create a minimal WordleSolver and verify its attributes.
+    """
     w = WordleSolver(word_list_file=data["5w"])
     assert w.word_length == 5
     assert w.top == 5
@@ -25,6 +31,9 @@ def test_minimal_wordle_class(data: Dict[str, str]) -> None:
 
 
 def test_wordle_class_parameters(data: Dict[str, str]) -> None:
+    """
+    Create a WordleSolver with non-default attributes and verify those.
+    """
     w = WordleSolver(
         word_list_file=data["6w"],
         word_frequency_file=data["6f"],
@@ -50,6 +59,9 @@ def test_wordle_class_parameters(data: Dict[str, str]) -> None:
 
 
 def test_success(data: Dict[str, str]) -> None:
+    """
+    Ensure the happy path works.
+    """
     w = WordleSolver(
         word_list_file=data["5w"],
         word_frequency_file=data["5f"],
@@ -61,12 +73,18 @@ def test_success(data: Dict[str, str]) -> None:
 
 @pytest.mark.xfail(raises=OutOfGuesses)
 def test_failure(data: Dict[str, str]) -> None:
+    """
+    Ensure we fail as expected if we run out of guesses.
+    """
     w = WordleSolver(word_list_file=data["5w"], answer="watch", guesses=3)
     w.main_loop()
 
 
 @pytest.mark.xfail(raises=NotImplementedError)
 def test_not_hard_mode(data: Dict[str, str]) -> None:
+    """
+    Check that we fail (for now) if we try to turn hard mode off.
+    """
     w = WordleSolver(
         word_list_file=data["5w"], answer="error", hard_mode=False
     )
@@ -74,6 +92,10 @@ def test_not_hard_mode(data: Dict[str, str]) -> None:
 
 
 def test_relax_repeats(data: Dict[str, str]) -> None:
+    """
+    Verify that we get different answers if we turn off repeated-letter
+    rejection or a known word list.
+    """
     w = WordleSolver(
         word_list_file=data["5w"], answer="sissy", initial_guess="atone"
     )
@@ -96,6 +118,18 @@ def test_relax_repeats(data: Dict[str, str]) -> None:
 
 
 def test_word_freq(data: Dict[str, str]) -> None:
+    """
+    Verify that word and letter frequency behave differently.
+    """
+    # First, we do letter frequency.
+    w = WordleSolver(
+        word_list_file=data["6w"],
+        answer="answer",
+        word_length=6,
+        initial_guess="button",
+    )
+    char_frequency_guess = w.current_guess  # 'linear', as it happens
+    w.loop_once()
     w = WordleSolver(
         word_list_file=data["6w"],
         word_frequency_file=data["6f"],
@@ -104,19 +138,17 @@ def test_word_freq(data: Dict[str, str]) -> None:
         initial_guess="button",
     )
     w.loop_once()
-    first_guess = w.current_guess  # 'change', as it happens
-    w = WordleSolver(
-        word_list_file=data["6w"],
-        answer="answer",
-        word_length=6,
-        initial_guess="button",
-    )
-    w.loop_once()
-    w.attempt += 1
-    assert first_guess != w.current_guess  # 'linear'
+    assert char_frequency_guess != w.current_guess  # 'change'
 
 
 def test_internal_state(data: Dict[str, str]) -> None:
+    """
+    Make sure that our internal data structures behave as expected.
+    Specifically, we're testing:
+    a) winnowing down of word lists,
+    b) our include and exclude sets, and
+    c) the matching regular expression we are constructing.
+    """
     w = WordleSolver(
         word_list_file=data["6w"],
         answer="answer",
