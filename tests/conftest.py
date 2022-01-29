@@ -21,12 +21,19 @@ def data() -> Dict[str, str]:
         "5f": join(datadir, "5x1000.freq"),
         "6f": join(datadir, "6x800.freq"),
         "ff": join(datadir, "flat.freq"),
+        "sf": join(datadir, "standard.freq"),
+        "mm": join(datadir, "mastermind.txt"),
+        "pm": join(datadir, "primel.txt"),
     }
 
 
 @pytest.fixture
-def standard_solver(data) -> WordleSolver:  # pylint: disable=W0621
+def standard_solver(
+    data: Dict[str, str]
+) -> WordleSolver:  # pylint: disable=W0621
     """
     Return a solver with usual Wordle parameters
     """
-    return WordleSolver(word_list_file=data["5w"])
+    return WordleSolver(
+        word_list_file=data["5w"], character_frequency_file=data["sf"]
+    )

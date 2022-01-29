@@ -7,7 +7,6 @@ import re
 from typing import Dict, List, Mapping, Set, Union
 
 from .exceptions import AnswerFound, OutOfGuesses
-from .letterfrequency import letterfrequency
 
 
 class WordleSolver:
@@ -39,7 +38,6 @@ class WordleSolver:
         top: int = 5,
         word_frequency_file: str = "",
         character_frequency_file: str = "",
-        dynamic_character_frequency: bool = False,
         debug: bool = False,
     ):  # pylint: disable="too-many-arguments"
         self.log = logging.getLogger(__name__)
@@ -64,24 +62,25 @@ class WordleSolver:
             self.re_list.append(".")
         self.re_list.append("$")
         self.wordlist: List[str] = []
-        self.character_frequency = letterfrequency
-        self.word_frequency: Dict[str, int] = {}
+        self.character_frequency: Mapping[str, Union[int, float]] = {}
+        self.word_frequency: Mapping[str, Union[int, float]] = {}
         self.load_wordlist(word_list_file)
         self.attempt: int = 1
         self.match_pattern = "." * self.word_length
-        # The ordering here is slightly tricky.
-        # By default, you get the character frequencies in letterfrequency.py.
-        # If you are specifying your own character frequency file
-        # (for instance, you'd rather use freqencies-of-characters-in-
-        # the-dictionary rather than in-text, or you want digits because
-        # you're going to play Primel instead), do that here so that
-        # the first best guess can be used.
+        # By default, you will generate character frequencies from your
+        # input word list.  This will cause a noticeable delay in startup if
+        # you're using a full-size dictionary.
+        #
+        # Thus, you might want to specify a character frequency file.
+        #
+        # You can generate a character frequency file that's pretty accurate
+        # for English text by running 'make testdata' from the top of the
+        # repository.  It will then be in tests/static/standard.freq .
         if character_frequency_file:
             self.character_frequency = self.load_frequency_file(
                 character_frequency_file, char=True
             )
-        # Or, you can use the actual frequency from your input wordlist
-        if dynamic_character_frequency:
+        else:
             self.character_frequency = self.generate_frequencies()
         # In any event, you're going to need character frequency here.
         if not self.current_guess:
@@ -123,7 +122,7 @@ class WordleSolver:
         self.wordlist = wordlist
 
     def load_frequency_file(
-        self, filename: str, char=False
+        self, filename: str, char: bool = False
     ) -> Mapping[str, Union[int, float]]:
         """
         Just like load_wordlist, but it expects each word to have whitespace
@@ -160,7 +159,7 @@ class WordleSolver:
             self.log.debug(f"Considered {l_num} words, kept {len(freq)}.")
         return freq
 
-    def generate_frequencies(self):
+    def generate_frequencies(self) -> Dict[str, int]:
         """
         Generate character frequency from the actual word list (which is
         already lowercased and deduplicated).
@@ -172,21 +171,25 @@ class WordleSolver:
                     cf[c] = 1
                 else:
                     cf[c] += 1
-        self.log.debug(f"Dynamic character frequencies: {cf}")
-        return cf
+        # Sorting here is purely for the debugging output to look prettier
+        #  and make it easier to see what the most common characters are.
+        s_cf = self.sort_by_weight(cf)
+        sorted_frequencies = {}
+        for x in s_cf:
+            sorted_frequencies[x] = cf[x]
+        self.log.debug(f"Dynamic character frequencies: {sorted_frequencies}")
+        return sorted_frequencies
 
     def main_loop(self) -> None:
         """
         This continues until it runs out of guesses or finds the answer.
         """
-        for _ in range(self.max_guesses):
+        while True:
             try:
                 self.loop_once()
-                self.attempt += 1
             except AnswerFound as answer:
                 self.log.info(answer)
                 return
-        raise OutOfGuesses("Maximum #guesses ({self.max_guesses}) exceeded!")
 
     def loop_once(self) -> None:
         """
@@ -227,6 +230,12 @@ class WordleSolver:
                 + f"on attempt {self.attempt}."
             )
             raise AnswerFound(correct)
+        # That wasn't it.  Did we run out of guesses?
+        self.attempt += 1
+        if self.attempt >= self.max_guesses:
+            raise OutOfGuesses(
+                f"Maximum #guesses ({self.max_guesses}) " + "exceeded!"
+            )
 
     def enter_guess(self, guess: str = "") -> None:
         """
@@ -389,7 +398,7 @@ class WordleSolver:
             self.log.info(g_log)
         return best_guess
 
-    def get_word_frequencies(self) -> Dict[str, int]:
+    def get_word_frequencies(self) -> Mapping[str, Union[int, float]]:
         """
         This simply builds a dictionary mapping each remaining word to its
         frequency.
@@ -399,7 +408,9 @@ class WordleSolver:
             w_freq[w] = self.word_frequency.get(w, 0)
         return w_freq
 
-    def apply_frequency_metric(self, w_freq: Dict[str, int]) -> List[str]:
+    def apply_frequency_metric(
+        self, w_freq: Mapping[str, Union[int, float]]
+    ) -> List[str]:
         """
         This is (currently) a placeholder that just returns more frequent
         words first.

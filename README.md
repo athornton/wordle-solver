@@ -49,18 +49,16 @@ solve on the basis of word frequency rather than character frequency.
 ## Options
 
 The input word list can be set with `--file`.  If you don't set it, you
-get `/usr/share/dict/words`.  If you want to use a word-frequency file, use
+get `/usr/share/dict/words`.
+
+If you want to use a different word-frequency file, use
 the `--word-frequency-file` option to set it.
 
-If you want to use a different character frequency file (for instance,
-you want to use frequency of letters in dictionary words rather than in
-text, or you want to use digits as your charactes),
-`--character-frequency-file` will do that.
-
-You can also generate character frequencies with
-`--dynamic-character-frequency`, which will iterate over your word list
-to build the frequency map.  This might take a while if you had an
-enormous dictionary.
+If you do not specify a character-frequency file, the solver will use
+the observed letter frequency from your word list file.  If you have a
+very large dictionary or a very slow computer, this might take a while
+to generate.  If you want to specify a character frequency file, use
+`--character-frequency-file`.
 
 You can set the initial guess with `--initial-guess`.  From a
 character-frequency standpoint, at least with the dictionaries I've been
@@ -81,12 +79,31 @@ per Wordle) and you can play with different word lengths with `--length`
 `--debug` will emit copious output about what the solver is doing as it
 does it.
 
-## Primel
+## Generating word and character frequency files
+
+The program [`generate_test_data`](scripts/generate_test_data) will
+create word frequency files for the most common 1000 five-letter words
+and the most common 800 six-letter words, as well as character frequency
+in English text, and dictionary lists for playing
+[Primel](https://converged.yt/primel/) and
+[Mastermind](https://en.wikipedia.org/wiki/Mastermind_(board_game)).
+
+These files will be generated in the `tests/static` directory.  You can
+also generate them with `make testdata` in the top-level directory.
+
+## Playing other similar games
+
+### Primel
 
 The solver also works fine for Primel, although you will need to give it
-a custom character frequency file, or, more easily, just use dynamic
-character frequency.  Just give it an input word list of all five-digit
-primes and use `--dynamic-character-frequency`.
+an input word list of all five-digit primes (which `make testdata` will
+generate for you).
+
+### Mastermind
+
+The solver can also play Mastermind.  Give it an input word list of all
+four-character combinations of the digits `1` through `6` (`make testdata`
+will generate this as well), and set `--length` to `4`).
 
 ## Developing
 
@@ -95,3 +112,8 @@ the pre-commit hooks for you.  The solver itself has no external
 requirements: everything in it is in the Python 3.8 standard library;
 however, the test suite and pre-commit hooks have some external packages
 they require.
+
+There is also a
+[Python fragment for interactive use](scripts/interactive.py) that can
+be used to create a `WordleSolver` object and examine its internal state
+as play proceeds.  Basic instructions for use are in the file.

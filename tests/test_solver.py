@@ -39,6 +39,7 @@ def test_wordle_class_parameters(data: Dict[str, str]) -> None:
     w = WordleSolver(
         word_list_file=data["6w"],
         word_frequency_file=data["6f"],
+        character_frequency_file=data["ff"],
         word_length=6,
         relax_repeats=True,
         answer="create",
@@ -70,12 +71,12 @@ def test_success(standard_solver: WordleSolver) -> None:
 
 
 @pytest.mark.xfail(raises=OutOfGuesses)
-def test_failure(standard_solver) -> None:
+def test_failure(standard_solver: WordleSolver) -> None:
     """
     Ensure we fail as expected if we run out of guesses.
     """
-    standard_solver.answer = "watch"
-    standard_solver.guesses = 3
+    standard_solver.answer = "catch"
+    standard_solver.max_guesses = 5
     standard_solver.main_loop()
 
 
@@ -88,17 +89,21 @@ def test_easy_mode_failure(data: Dict[str, str]) -> None:
 
 
 def test_dynamic_letter_frequencies(
-    standard_solver, data: Dict[str, str]
+    standard_solver: WordleSolver, data: Dict[str, str]
 ) -> None:
-    w = WordleSolver(
-        word_list_file=data["5w"], dynamic_character_frequency=True
-    )
+    """
+    Ensure that dynamic frequencies don't exactly match our standard list.
+    """
+    w = WordleSolver(word_list_file=data["5w"])
     assert w.character_frequency != standard_solver.character_frequency
 
 
 def test_custom_letter_frequencies(
-    standard_solver, data: Dict[str, str]
+    standard_solver: WordleSolver, data: Dict[str, str]
 ) -> None:
+    """
+    Test that different letter frequency files give different results.
+    """
     w = WordleSolver(
         word_list_file=data["5w"], character_frequency_file=data["ff"]
     )
@@ -112,6 +117,7 @@ def test_word_freq(data: Dict[str, str]) -> None:
     # First, we do letter frequency.
     w = WordleSolver(
         word_list_file=data["6w"],
+        character_frequency_file=data["sf"],
         answer="answer",
         word_length=6,
         initial_guess="button",
@@ -144,10 +150,8 @@ def test_internal_state(data: Dict[str, str]) -> None:
         initial_guess="button",
     )
     w.loop_once()
-    w.attempt += 1
     assert len(w.wordlist) == 78
     w.loop_once()
-    w.attempt += 1
     assert len(w.wordlist) == 1  # Yep, it really goes get it on the third try.
     assert w.include_letters == set(["a", "e", "n"])
     assert w.exclude_letters == set(["b", "u", "t", "o", "i", "l"])
@@ -178,3 +182,21 @@ def test_relax_repeats(data: Dict[str, str]) -> None:
     w.main_loop()
     assert w.attempt < first  # But 's' is more common than 'm' and 'k',
     # so this time it will have been chosen sooner.
+
+
+def test_primel(data: Dict[str, str]) -> None:
+    """
+    Try a game of Primel (https://converged.yt/primel/)
+    """
+    w = WordleSolver(word_list_file=data["pm"], answer="35677")
+    w.main_loop()
+    assert w.current_guess == w.answer
+
+
+def test_mastermind(data: Dict[str, str]) -> None:
+    """
+    Try a game of Mastermind (allowed characters are 1-6, word length 4).
+    """
+    w = WordleSolver(word_list_file=data["mm"], word_length=4, answer="2644")
+    w.main_loop()
+    assert w.current_guess == w.answer

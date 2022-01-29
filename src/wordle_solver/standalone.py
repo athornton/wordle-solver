@@ -64,13 +64,6 @@ def main() -> None:
         "--word-frequency-file",
         help="File containing words and their relative frequency",
     )
-    parser.add_argument(
-        "-y",
-        "--dynamic_character_frequency",
-        help="generate character frequency from word list",
-        action="store_true",
-        default=False,
-    )
     args = parser.parse_args()
     solver = WordleSolver(
         word_list_file=args.file,
@@ -84,7 +77,6 @@ def main() -> None:
         initial_guess=args.initial_guess,
         relax_repeats=args.relax_repeats,
         top=args.top,
-        dynamic_character_frequency=args.dynamic_character_frequency,
     )
     solver.main_loop()
 

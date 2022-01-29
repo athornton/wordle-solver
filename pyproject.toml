@@ -59,3 +59,9 @@ python_files = [
     "tests/*.py",
     "tests/*/*.py"
 ]
+
+[tool.pylint.messages_control]
+
+disable = [
+  "duplicate-code"
+]
