@@ -30,7 +30,7 @@ suggestion it gives you into Wordle.
 
 If you end up in the trap of words ending in "atch" we can't really help
 you.  There are seven pretty common five-letter words like that, and you
-have only six guesses in Wordle.
+have only six guesses in Wordle.  The suffix "ight" is even worse.
 
 ## Non-interactive
 
@@ -108,10 +108,11 @@ To generate a sorted list of all Wordle-allowable guesses:
 
 [Lewdle](https://www.lewdlegame.com/) is Dirty Wordle.
 
-Lewdle's word list is both tiny and pretty lame, but you can extract it
-from the game's source code.  In Firefox Web Developer Tools, Debugger
--> Main Thread -> www.lewdlegame.com -> static -> js -> Constants.jsx .
-Cheating at Lewdle is even sadder than cheating at Wordle.
+Lewdle's word list is both tiny and pretty lame (*just like prom
+night*), but you can extract it from the game's source code.  In Firefox
+Web Developer Tools, Debugger -> Main Thread -> www.lewdlegame.com ->
+static -> js -> Constants.jsx .  Cheating at Lewdle is even sadder than
+cheating at Wordle.
 
 ### Primel
 
