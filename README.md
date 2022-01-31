@@ -91,7 +91,27 @@ in English text, and dictionary lists for playing
 These files will be generated in the `tests/static` directory.  You can
 also generate them with `make testdata` in the top-level directory.
 
-## Playing other similar games
+## Straight-up cheating at Wordle
+
+Cyrus Freshman has published both the
+[list of all Wordle answers](https://gist.github.com/cfreshman/a03ef2cba789d8cf00c08f767e0fad7b)
+and the
+[list of all Wordle allowed words except answers](https://gist.github.com/cfreshman/cdcdf777450c5b5301e439061d29694c)
+
+To generate a sorted list of all Wordle-allowable guesses:
+`cat wordle-allowed-guesses.txt wordle-answers-alphabetical.txt | sort`
+.
+
+## Playing Other Similar Games
+
+### Lewdle
+
+[Lewdle](https://www.lewdlegame.com/) is Dirty Wordle.
+
+Lewdle's word list is both tiny and pretty lame, but you can extract it
+from the game's source code.  In Firefox Web Developer Tools, Debugger
+-> Main Thread -> www.lewdlegame.com -> static -> js -> Constants.jsx .
+Cheating at Lewdle is even sadder than cheating at Wordle.
 
 ### Primel
 
