@@ -232,7 +232,7 @@ class WordleSolver:
             raise AnswerFound(correct)
         # That wasn't it.  Did we run out of guesses?
         self.attempt += 1
-        if self.attempt >= self.max_guesses:
+        if self.attempt > self.max_guesses:
             raise OutOfGuesses(
                 f"Maximum #guesses ({self.max_guesses}) " + "exceeded!"
             )
