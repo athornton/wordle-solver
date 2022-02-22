@@ -153,7 +153,7 @@ def test_internal_state(data: Dict[str, str]) -> None:
     assert len(w.wordlist) == 78
     w.loop_once()
     assert len(w.wordlist) == 1  # Yep, it really goes get it on the third try.
-    assert w.include_letters == set(["a", "e", "n"])
+    assert w.include_letters == set(["a", "e", "n", "r"])
     assert w.exclude_letters == set(["b", "u", "t", "o", "i", "l"])
     assert "".join(w.re_list) == "^..[^n][^e][^a]r$"
 

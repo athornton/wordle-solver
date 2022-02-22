@@ -311,9 +311,7 @@ class WordleSolver:
             if ch == "!":
                 # This is correct
                 self.re_list[p_i] = c
-                # And since we have an exact match, we can drop it from
-                #  include_letters
-                self.include_letters.discard(c)
+                self.include_letters = self.include_letters | {c}
             elif ch == "?":
                 # This letter is in the word, but not in that place
                 if current_set == ".":
@@ -327,7 +325,12 @@ class WordleSolver:
                 if c not in self.re_list:
                     self.include_letters = self.include_letters | {c}
             elif ch == ".":
-                self.exclude_letters = self.exclude_letters | {c}
+                # Either the letter is not in the word, or it occurs in
+                # the word but we've found all the occurrences as either
+                # '!' or '?' already.  But if we've done that, it's in
+                # self.include_letters.
+                if c not in self.include_letters:
+                    self.exclude_letters = self.exclude_letters | {c}
             else:
                 raise ValueError(f"Response character {ch} not in '.?!'")
         self.log.debug(f"include: {self.include_letters}")
